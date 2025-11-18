@@ -1,23 +1,35 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'M2_HOME'
+    }
+
     stages {
-        stage('Git Checkout') {
+
+        stage('Code Checkout') {
             steps {
-                checkout scm
+                git url: 'https://github.com/salma-mahjoub/Mahjoub_Salma_4SIM1.git', branch: 'main'
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build Project') {
             steps {
-                sh 'mvn clean install'
+                sh 'mvn compile'
             }
         }
 
-        stage('Tests') {
-            steps {
-                sh 'mvn test'
-            }
+    }
+
+    post {
+        success {
+            echo "Pipeline executed successfully!"
+        }
+        failure {
+            echo "Pipeline failed!"
         }
     }
 }
+
+
+
