@@ -12,51 +12,39 @@ pipeline {
 
     stages {
 
-        stage('Code Checkout') {
+        stage('Checkout') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/salma-mahjoub/Mahjoub_Salma_4SIM1.git'
             }
         }
 
-        stage('Build Maven') {
+        stage('Maven Build') {
             steps {
-                sh "mvn clean package -Dmaven.test.skip=true"
+                sh 'mvn clean install -DskipTests'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Sonar Analysis') {
             steps {
-                sh """
-                docker build -t $DOCKER_IMAGE_NAME:1.0.0 .
-                """
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh """
+                    mvn sonar:sonar \
+                        -Dsonar.projectKey=student-management \
+                        -Dsonar.host.url=http://192.168.33.10:9000 \
+                        -Dsonar.login=$SONAR_TOKEN
+                    """
+                }
             }
         }
-
-        stage('Docker Login') {
-            steps {
-                sh """
-                echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin
-                """
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh """
-                docker push $DOCKER_IMAGE_NAME:1.0.0
-                """
-            }
-        }
-
     }
 
     post {
         success {
-            echo "Build & Push Success!"
+            echo "Pipeline Success!"
         }
         failure {
-            echo "Build Failed!"
+            echo "Pipeline Failed!"
         }
     }
 }
