@@ -3,8 +3,8 @@ pipeline {
     
     environment {
         DOCKER_HUB_CREDENTIALS = 'dockerhub-credentials'  // ID des credentials dans Jenkins
-        DOCKER_IMAGE = 'salma123/spring-app'  // MODIFIER avec votre username
-        KUBECONFIG_CREDENTIAL = 'kubeconfig'
+        DOCKER_IMAGE = 'salmamahjoub/student-management'  
+        KUBECONFIG_CREDENTIAL = 'sonar-token'
     }
     
     stages {
