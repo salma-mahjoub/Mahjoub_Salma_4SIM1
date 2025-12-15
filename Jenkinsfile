@@ -2,82 +2,63 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_IMAGE = 'salmamahjoub/student-management'
-        DOCKER_TAG = "${BUILD_NUMBER}"
-        NAMESPACE = 'devops'
+        DOCKER_HUB_CREDENTIALS = 'dockerhub-credentials'  // ID des credentials dans Jenkins
+        DOCKER_IMAGE = 'salma123/spring-app'  // MODIFIER avec votre username
+        KUBECONFIG_CREDENTIAL = 'kubeconfig'
     }
     
     stages {
         stage('Checkout') {
             steps {
-                echo '📥 Récupération du code source...'
-                checkout scm
+                git branch: 'main', 
+                    url: 'https://github.com/salma-mahjoub/Mahjoub_Salma_4SIM1.git'
             }
         }
         
-        stage('Build Maven') {
+        stage('Build with Maven') {
             steps {
-                echo '🔨 Build de l\'application avec Maven...'
                 sh 'mvn clean package -DskipTests'
             }
         }
         
         stage('Build Docker Image') {
             steps {
-                echo '🐳 Construction de l\'image Docker...'
-                sh """
-                    docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                    docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                """
+                script {
+                    sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
+                    sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+                }
             }
         }
         
-        stage('Push Docker Image') {
+        stage('Push to Docker Hub') {
             steps {
-                echo '📤 Push de l\'image vers Docker Hub...'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
-                                                  usernameVariable: 'DOCKER_USER', 
-                                                  passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        docker push ${DOCKER_IMAGE}:latest
-                    """
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_HUB_CREDENTIALS) {
+                        sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                        sh "docker push ${DOCKER_IMAGE}:latest"
+                    }
                 }
             }
         }
         
         stage('Deploy to Kubernetes') {
             steps {
-                echo '☸️ Déploiement sur Kubernetes...'
-                sh """
-                    kubectl apply -f manifests/mysql-deployment.yaml
-                    kubectl apply -f manifests/spring-deployment.yaml
-                    kubectl rollout restart deployment/spring-deployment -n ${NAMESPACE}
-                    kubectl rollout status deployment/spring-deployment -n ${NAMESPACE}
-                """
-            }
-        }
-        
-        stage('Verify Deployment') {
-            steps {
-                echo '✅ Vérification du déploiement...'
-                sh """
-                    echo "=== PODS ==="
-                    kubectl get pods -n ${NAMESPACE}
-                    echo "=== SERVICES ==="
-                    kubectl get svc -n ${NAMESPACE}
-                """
+                script {
+                    sh 'kubectl apply -f k8s/secrets.yaml'
+                    sh 'kubectl apply -f k8s/mysql-deployment.yaml'
+                    sh 'kubectl apply -f k8s/spring-deployment.yaml'
+                    sh 'kubectl rollout restart deployment/spring-app -n devops'
+                }
             }
         }
     }
     
     post {
         success {
-            echo '✅ Pipeline exécuté avec succès!'
+            echo 'Deployment successful!'
         }
         failure {
-            echo '❌ Le pipeline a échoué.'
+            echo 'Deployment failed!'
         }
     }
 }
